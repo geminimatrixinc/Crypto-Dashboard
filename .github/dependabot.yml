@@ -6,7 +6,7 @@
 version: 2
 updates:
   - package-ecosystem: "npm"
-    directory: "/fs-crypto-coin-tracker/frontend"
+    directory: "/fs-crypto-coin-tracker/stage-2-node-express-mongo/front-end-ui"
     schedule:
       interval: "weekly"
     groups:
@@ -27,7 +27,7 @@ updates:
           - "major"
 
   - package-ecosystem: "npm"
-    directory: "/fs-crypto-coin-tracker/backend"
+    directory: "/fs-crypto-coin-tracker/stage-2-node-express-mongo/back-end"
     schedule:
       interval: "weekly"
     groups:
