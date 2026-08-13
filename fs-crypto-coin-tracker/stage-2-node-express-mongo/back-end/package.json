@@ -4,7 +4,9 @@
   "main": "index.js",
   "scripts": {
     "start": "nodemon app.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest",
+    "lint": "eslint .",
+    "build": "echo 'No build required for Express backend'"
   },
   "keywords": [],
   "author": "",
@@ -14,5 +16,10 @@
     "cors": "^2.8.5",
     "express": "^4.19.2",
     "mongoose": "^8.4.1"
+  },
+  "devDependencies": {
+    "eslint": "^8.56.0",
+    "jest": "^29.7.0",
+    "nodemon": "^3.0.2"
   }
 }
