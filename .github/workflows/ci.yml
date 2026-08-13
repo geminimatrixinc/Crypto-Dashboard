@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      back-end: ${{ steps.changes.outputs.back-end }}
+      front-end: ${{ steps.changes.outputs.front-end }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed paths
+        id: changes
+        run: |
+          # Get list of changed files
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          else
+            CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+          fi
+
+          # Check which stages have changes
+          if echo "$CHANGED_FILES" | grep -q "fs-crypto-coin-tracker/stage-2-node-express-mongo/back-end/"; then
+            echo "back-end=true" >> $GITHUB_OUTPUT
+          else
+            echo "back-end=false" >> $GITHUB_OUTPUT
+          fi
+
+          if echo "$CHANGED_FILES" | grep -q "fs-crypto-coin-tracker/stage-2-node-express-mongo/front-end-ui/"; then
+            echo "front-end=true" >> $GITHUB_OUTPUT
+          else
+            echo "front-end=false" >> $GITHUB_OUTPUT
+          fi
+
+          echo "Changed files: $CHANGED_FILES"
+
+  test-back-end:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.back-end == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: fs-crypto-coin-tracker/stage-2-node-express-mongo/back-end
+
+      - name: Run tests
+        run: npm test
+        working-directory: fs-crypto-coin-tracker/stage-2-node-express-mongo/back-end
+
+      - name: Run linter
+        run: npm run lint
+        working-directory: fs-crypto-coin-tracker/stage-2-node-express-mongo/back-end
+
+      - name: Run build
+        run: npm run build
+        working-directory: fs-crypto-coin-tracker/stage-2-node-express-mongo/back-end
+
+  test-front-end:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.front-end == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: fs-crypto-coin-tracker/stage-2-node-express-mongo/front-end-ui
+
+      - name: Run tests
+        run: npm test -- --watchAll=false
+        working-directory: fs-crypto-coin-tracker/stage-2-node-express-mongo/front-end-ui
+
+      - name: Run linter
+        run: npm run lint
+        working-directory: fs-crypto-coin-tracker/stage-2-node-express-mongo/front-end-ui
+
+      - name: Run build
+        run: npm run build
+        working-directory: fs-crypto-coin-tracker/stage-2-node-express-mongo/front-end-ui
