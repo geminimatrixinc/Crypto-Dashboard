@@ -1,0 +1,31 @@
+version: 2
+updates:
+  # Back-end dependencies
+  - package-ecosystem: npm
+    directory: "fs-crypto-coin-tracker/stage-2-node-express-mongo/back-end"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "03:00"
+    open-pull-requests-limit: 10
+    pull-request-branch-name:
+      separator: "/"
+    groups:
+      all-deps:
+        patterns:
+          - "*"
+
+  # Front-end dependencies
+  - package-ecosystem: npm
+    directory: "fs-crypto-coin-tracker/stage-2-node-express-mongo/front-end-ui"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "03:00"
+    open-pull-requests-limit: 10
+    pull-request-branch-name:
+      separator: "/"
+    groups:
+      all-deps:
+        patterns:
+          - "*"
