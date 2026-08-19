@@ -1,0 +1,85 @@
+name: ESLint Fix Skill
+
+on: workflow_call
+  inputs:
+    pr-number:
+      required: true
+      type: string
+    failed-jobs:
+      required: true
+      type: string
+
+jobs:
+  eslint-fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/pull/${{ inputs.pr-number }}/head
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Determine project paths
+        id: paths
+        run: |
+          if echo "${{ inputs.failed-jobs }}" | grep -q "lint-back-end"; then
+            echo "PROJECT_PATH=fs-crypto-coin-tracker/stage-2-node-express-mongo/back-end" >> $GITHUB_OUTPUT
+            echo "PROJECT_TYPE=back-end" >> $GITHUB_OUTPUT
+          elif echo "${{ inputs.failed-jobs }}" | grep -q "lint-front-end"; then
+            echo "PROJECT_PATH=fs-crypto-coin-tracker/stage-2-node-express-mongo/front-end-ui" >> $GITHUB_OUTPUT
+            echo "PROJECT_TYPE=front-end" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: ${{ steps.paths.outputs.PROJECT_PATH }}
+
+      - name: Run ESLint with auto-fix
+        id: eslint-fix
+        continue-on-error: true
+        run: npx eslint . --fix
+        working-directory: ${{ steps.paths.outputs.PROJECT_PATH }}
+
+      - name: Check if fixes were applied
+        id: check-fixes
+        run: |
+          if [ -n "$(git diff --name-only)" ]; then
+            echo "fixes-applied=true" >> $GITHUB_OUTPUT
+            git diff --stat
+          else
+            echo "fixes-applied=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create or update fix branch
+        if: steps.check-fixes.outputs.fixes-applied == 'true'
+        env:
+          FIX_BRANCH: fix-for-dependabot-${{ inputs.pr-number }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Check if fix branch exists locally
+          if git rev-parse --verify origin/$FIX_BRANCH 2>/dev/null; then
+            git checkout $FIX_BRANCH
+            git pull origin $FIX_BRANCH
+          else
+            git checkout -b $FIX_BRANCH
+          fi
+
+          git add .
+          git commit -m "fix: resolve ESLint violations from dependabot PR #${{ inputs.pr-number }}"
+          git push origin $FIX_BRANCH --force-with-lease
+
+      - name: Report results
+        run: |
+          echo "### ESLint Fix Report" >> $GITHUB_STEP_SUMMARY
+          echo "- Fixes applied: ${{ steps.check-fixes.outputs.fixes-applied }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Project: ${{ steps.paths.outputs.PROJECT_TYPE }}" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.check-fixes.outputs.fixes-applied }}" == "true" ]; then
+            echo "- Branch: fix-for-dependabot-${{ inputs.pr-number }}" >> $GITHUB_STEP_SUMMARY
+          fi
