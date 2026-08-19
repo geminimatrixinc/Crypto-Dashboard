@@ -1,0 +1,107 @@
+name: Dependabot Auto-Fix
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+permissions:
+  pull-requests: write
+  contents: write
+
+jobs:
+  check-dependabot:
+    if: |
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
+      github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    outputs:
+      failed-jobs: ${{ steps.detect.outputs.failed_jobs }}
+      pr-number: ${{ github.event.pull_request.number }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect failed jobs
+        id: detect
+        env:
+          WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          # Get workflow run details
+          JOBS=$(gh run view $WORKFLOW_RUN_ID --json jobs -q '.jobs[] | select(.conclusion=="FAILURE") | .name')
+
+          # Parse jobs and determine fix type
+          FAILED_JOBS=""
+          for job in $JOBS; do
+            if [[ "$job" == lint-* ]]; then
+              FAILED_JOBS="$FAILED_JOBS eslint-fix:$job"
+            elif [[ "$job" == test-* ]]; then
+              FAILED_JOBS="$FAILED_JOBS test-fix:$job"
+            elif [[ "$job" == build-* ]]; then
+              FAILED_JOBS="$FAILED_JOBS build-fix:$job"
+            fi
+          done
+
+          echo "failed_jobs=$FAILED_JOBS" >> $GITHUB_OUTPUT
+
+  fix-eslint:
+    needs: check-dependabot
+    if: contains(needs.check-dependabot.outputs.failed-jobs, 'eslint-fix')
+    uses: ./.github/skills/eslint-fix.yml
+    with:
+      pr-number: ${{ github.event.pull_request.number }}
+      failed-jobs: ${{ needs.check-dependabot.outputs.failed-jobs }}
+
+  fix-tests:
+    needs: check-dependabot
+    if: contains(needs.check-dependabot.outputs.failed-jobs, 'test-fix')
+    uses: ./.github/skills/test-fix.yml
+    with:
+      pr-number: ${{ github.event.pull_request.number }}
+      failed-jobs: ${{ needs.check-dependabot.outputs.failed-jobs }}
+
+  create-fix-pr:
+    needs: [check-dependabot, fix-eslint, fix-tests]
+    if: always() && (needs.fix-eslint.result == 'success' || needs.fix-tests.result == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for fix changes
+        id: check-changes
+        env:
+          FIX_BRANCH: fix-for-dependabot-${{ github.event.pull_request.number }}
+        run: |
+          git fetch origin $FIX_BRANCH 2>/dev/null && echo "branch-exists=true" >> $GITHUB_OUTPUT || echo "branch-exists=false" >> $GITHUB_OUTPUT
+
+      - name: Create or update fix PR
+        if: steps.check-changes.outputs.branch-exists == 'true'
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          FIX_BRANCH: fix-for-dependabot-${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Check if fix PR already exists
+          EXISTING_PR=$(gh pr list --head $FIX_BRANCH --state open --json number -q '.[0].number')
+
+          if [ -z "$EXISTING_PR" ]; then
+            # Create new fix PR
+            gh pr create \
+              --head $FIX_BRANCH \
+              --base main \
+              --title "fix: resolve CI failures from dependabot PR #$PR_NUMBER" \
+              --body "Automatically fixed CI failures from #$PR_NUMBER
+
+## Changes
+- ESLint violations fixed
+- Test failures resolved
+- Build errors corrected
+
+This PR should be merged before or alongside #$PR_NUMBER"
+          else
+            echo "Fix PR #$EXISTING_PR already exists"
+          fi
+
+          # Comment on dependabot PR linking to fix PR
+          gh pr comment $PR_NUMBER --body "🔧 Auto-fix PR created: #$EXISTING_PR (or new PR)"
