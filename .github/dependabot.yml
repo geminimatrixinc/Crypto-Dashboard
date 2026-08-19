@@ -8,7 +8,7 @@ updates:
   - package-ecosystem: "npm"
     directory: "/fs-crypto-coin-tracker/stage-2-node-express-mongo/front-end-ui"
     schedule:
-      interval: "weekly"
+      interval: "daily"
     groups:
       production-dependencies:
         dependency-type: "production"
@@ -29,7 +29,7 @@ updates:
   - package-ecosystem: "npm"
     directory: "/fs-crypto-coin-tracker/stage-2-node-express-mongo/back-end"
     schedule:
-      interval: "weekly"
+      interval: "daily"
     groups:
       production-dependencies:
         dependency-type: "production"
