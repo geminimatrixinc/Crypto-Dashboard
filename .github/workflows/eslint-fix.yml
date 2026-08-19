@@ -72,17 +72,24 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Check if fix branch exists locally
-          if git rev-parse --verify origin/$FIX_BRANCH 2>/dev/null; then
-            git checkout $FIX_BRANCH
-            git pull origin $FIX_BRANCH
+          # Preserve the eslint --fix changes before switching branches
+          git add -A
+          git stash push -u -m eslint-fixes || true
+
+          # Stack on the existing fix branch if present, else branch off the PR head
+          if git ls-remote --exit-code --heads origin "$FIX_BRANCH" >/dev/null 2>&1; then
+            git fetch origin "$FIX_BRANCH"
+            git checkout -B "$FIX_BRANCH" "origin/$FIX_BRANCH"
           else
-            git checkout -b $FIX_BRANCH
+            git checkout -B "$FIX_BRANCH"
           fi
 
-          git add .
-          git commit -m "fix: resolve ESLint violations from dependabot PR #${{ inputs.pr-number }}"
-          git push origin $FIX_BRANCH --force-with-lease
+          # Reapply the fixes on top of the fix branch
+          git stash pop || true
+
+          git add -A
+          git commit -m "fix: resolve ESLint violations from dependabot PR #${{ inputs.pr-number }}" || echo "No changes to commit"
+          git push origin "$FIX_BRANCH" --force-with-lease
 
       - name: Report results
         run: |

@@ -71,8 +71,8 @@ jobs:
       failed-jobs: ${{ needs.check-dependabot.outputs.failed-jobs }}
 
   fix-tests:
-    needs: check-dependabot
-    if: contains(needs.check-dependabot.outputs.failed-jobs, 'test-fix')
+    needs: [check-dependabot, fix-eslint]
+    if: always() && contains(needs.check-dependabot.outputs.failed-jobs, 'test-fix')
     uses: ./.github/workflows/test-fix.yml
     with:
       pr-number: ${{ needs.check-dependabot.outputs.pr-number }}
@@ -148,6 +148,8 @@ jobs:
           FIX_PR: ${{ steps.create-pr.outputs.pr_number }}
           GH_TOKEN: ${{ github.token }}
         run: |
+          # Ensure the label exists (idempotent), then apply it
+          gh label create "dependabot-auto-fix" --color "0e8a16" --description "Automated fix PR for a dependabot update" 2>/dev/null || true
           gh pr edit $FIX_PR --add-label "dependabot-auto-fix"
 
       - name: Comment on dependabot PR
