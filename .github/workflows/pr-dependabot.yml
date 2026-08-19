@@ -63,7 +63,7 @@ jobs:
   fix-eslint:
     needs: check-dependabot
     if: contains(needs.check-dependabot.outputs.failed-jobs, 'eslint-fix')
-    uses: ./.github/skills/eslint-fix.yml
+    uses: ./.github/workflows/eslint-fix.yml
     with:
       pr-number: ${{ needs.check-dependabot.outputs.pr-number }}
       failed-jobs: ${{ needs.check-dependabot.outputs.failed-jobs }}
@@ -71,7 +71,7 @@ jobs:
   fix-tests:
     needs: check-dependabot
     if: contains(needs.check-dependabot.outputs.failed-jobs, 'test-fix')
-    uses: ./.github/skills/test-fix.yml
+    uses: ./.github/workflows/test-fix.yml
     with:
       pr-number: ${{ needs.check-dependabot.outputs.pr-number }}
       failed-jobs: ${{ needs.check-dependabot.outputs.failed-jobs }}
