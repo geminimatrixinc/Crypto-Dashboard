@@ -25,6 +25,7 @@ jobs:
         env:
           WORKFLOW_RUN: ${{ toJson(github.event.workflow_run) }}
           WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           # Extract PR number from pull_requests array
           PR_NUMBER=$(echo "$WORKFLOW_RUN" | jq -r '.pull_requests[0].number // empty')
