@@ -22,7 +22,8 @@ Its CI is green.
 
 1. Review the **`[Auto-Fix]`** PR (the bump and the fixes are together, in context).
 2. Merge it.
-3. The original Dependabot PR closes automatically — its commits are already in `main`.
+3. The original Dependabot PR closes automatically — the Auto-Fix PR body
+   contains `Closes #<original>`, so merging it closes the Dependabot PR.
 
 You do **not** need to merge the original Dependabot PR. Merge the green
 `[Auto-Fix]` one.
