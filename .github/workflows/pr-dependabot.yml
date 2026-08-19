@@ -83,8 +83,8 @@ jobs:
       failed-jobs: ${{ needs.check-dependabot.outputs.failed-jobs }}
 
   create-fix-pr:
-    needs: [check-dependabot, fix-eslint, fix-tests]
-    if: always() && (needs.fix-eslint.result == 'success' || needs.fix-tests.result == 'success')
+    needs: check-dependabot
+    if: always() && needs.check-dependabot.outputs.pr-number != ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
