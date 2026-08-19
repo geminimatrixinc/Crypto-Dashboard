@@ -11,15 +11,38 @@ permissions:
 
 jobs:
   check-dependabot:
-    if: |
-      github.event.pull_request.user.login == 'dependabot[bot]' &&
-      github.event.workflow_run.conclusion == 'failure'
+    if: github.event.workflow_run.conclusion == 'failure'
     runs-on: ubuntu-latest
     outputs:
       failed-jobs: ${{ steps.detect.outputs.failed_jobs }}
-      pr-number: ${{ github.event.pull_request.number }}
+      pr-number: ${{ steps.pr-info.outputs.pr_number }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Extract PR number from workflow run
+        id: pr-info
+        env:
+          WORKFLOW_RUN: ${{ toJson(github.event.workflow_run) }}
+        run: |
+          # Extract PR number from pull_requests array
+          PR_NUMBER=$(echo "$WORKFLOW_RUN" | jq -r '.pull_requests[0].number // empty')
+          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+
+          if [ -z "$PR_NUMBER" ]; then
+            echo "No PR associated with this workflow run, skipping"
+            exit 0
+          fi
+
+      - name: Check if PR is from dependabot
+        id: check-dependabot
+        env:
+          PR_NUMBER: ${{ steps.pr-info.outputs.pr_number }}
+        run: |
+          AUTHOR=$(gh pr view $PR_NUMBER --json author -q '.author.login')
+          if [ "$AUTHOR" != "dependabot[bot]" ]; then
+            echo "PR is not from dependabot, skipping"
+            exit 0
+          fi
 
       - name: Detect failed jobs
         id: detect
@@ -48,7 +71,7 @@ jobs:
     if: contains(needs.check-dependabot.outputs.failed-jobs, 'eslint-fix')
     uses: ./.github/skills/eslint-fix.yml
     with:
-      pr-number: ${{ github.event.pull_request.number }}
+      pr-number: ${{ needs.check-dependabot.outputs.pr-number }}
       failed-jobs: ${{ needs.check-dependabot.outputs.failed-jobs }}
 
   fix-tests:
@@ -56,7 +79,7 @@ jobs:
     if: contains(needs.check-dependabot.outputs.failed-jobs, 'test-fix')
     uses: ./.github/skills/test-fix.yml
     with:
-      pr-number: ${{ github.event.pull_request.number }}
+      pr-number: ${{ needs.check-dependabot.outputs.pr-number }}
       failed-jobs: ${{ needs.check-dependabot.outputs.failed-jobs }}
 
   create-fix-pr:
@@ -71,15 +94,15 @@ jobs:
       - name: Check for fix changes
         id: check-changes
         env:
-          FIX_BRANCH: fix-for-dependabot-${{ github.event.pull_request.number }}
+          FIX_BRANCH: fix-for-dependabot-${{ needs.check-dependabot.outputs.pr-number }}
         run: |
           git fetch origin $FIX_BRANCH 2>/dev/null && echo "branch-exists=true" >> $GITHUB_OUTPUT || echo "branch-exists=false" >> $GITHUB_OUTPUT
 
       - name: Create or update fix PR
         if: steps.check-changes.outputs.branch-exists == 'true'
         env:
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          FIX_BRANCH: fix-for-dependabot-${{ github.event.pull_request.number }}
+          PR_NUMBER: ${{ needs.check-dependabot.outputs.pr-number }}
+          FIX_BRANCH: fix-for-dependabot-${{ needs.check-dependabot.outputs.pr-number }}
           GH_TOKEN: ${{ github.token }}
         run: |
           # Check if fix PR already exists
