@@ -1,0 +1,134 @@
+name: Test Fix Skill
+
+on:
+  workflow_call:
+    inputs:
+      pr-number:
+        required: true
+        type: string
+      failed-jobs:
+        required: true
+        type: string
+
+jobs:
+  test-fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/pull/${{ inputs.pr-number }}/head
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Determine project paths
+        id: paths
+        run: |
+          if echo "${{ inputs.failed-jobs }}" | grep -q "test-back-end"; then
+            echo "PROJECT_PATH=fs-crypto-coin-tracker/stage-2-node-express-mongo/back-end" >> $GITHUB_OUTPUT
+            echo "PROJECT_TYPE=back-end" >> $GITHUB_OUTPUT
+          elif echo "${{ inputs.failed-jobs }}" | grep -q "test-front-end"; then
+            echo "PROJECT_PATH=fs-crypto-coin-tracker/stage-2-node-express-mongo/front-end-ui" >> $GITHUB_OUTPUT
+            echo "PROJECT_TYPE=front-end" >> $GITHUB_OUTPUT
+          fi
+
+          if [ -z "$PROJECT_PATH" ]; then
+            echo "ERROR: No matching test job found in failed-jobs" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: ${{ steps.paths.outputs.PROJECT_PATH }}
+
+      - name: Run tests to identify failures
+        id: run-tests
+        continue-on-error: true
+        run: |
+          if [ "${{ steps.paths.outputs.PROJECT_TYPE }}" == "front-end" ]; then
+            npm test -- --watchAll=false 2>&1 | tee test-output.log
+          else
+            npm test 2>&1 | tee test-output.log
+          fi
+        working-directory: ${{ steps.paths.outputs.PROJECT_PATH }}
+
+      - name: Analyze test failures
+        id: analyze
+        run: |
+          cat test-output.log | head -50 > failure-summary.txt
+          echo "failures-found=true" >> $GITHUB_OUTPUT
+
+      - name: Prepare fix context for Copilot
+        id: copilot-context
+        run: |
+          cat > copilot-fix-request.md << 'EOF'
+          # Test Failure Fix Request
+
+          ## Project: ${{ steps.paths.outputs.PROJECT_TYPE }}
+          ## PR Number: ${{ inputs.pr-number }}
+
+          ## Failure Summary
+          $(cat failure-summary.txt)
+
+          ## Instructions
+          - Analyze the test failures above
+          - Identify root causes (e.g., missing imports, API changes, type errors)
+          - Generate fixes to the source code that resolve the failures
+          - Ensure fixes are minimal and preserve original functionality
+          EOF
+
+      - name: Run tests after potential fixes
+        id: verify-fixes
+        continue-on-error: true
+        run: |
+          if [ "${{ steps.paths.outputs.PROJECT_TYPE }}" == "front-end" ]; then
+            npm test -- --watchAll=false
+          else
+            npm test
+          fi
+        working-directory: ${{ steps.paths.outputs.PROJECT_PATH }}
+
+      - name: Check if tests pass
+        id: check-fixes
+        run: |
+          if [ "${{ steps.verify-fixes.outcome }}" == "success" ]; then
+            echo "fixes-applied=true" >> $GITHUB_OUTPUT
+          else
+            echo "fixes-applied=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit fixes if successful
+        if: steps.check-fixes.outputs.fixes-applied == 'true'
+        env:
+          FIX_BRANCH: fix-for-dependabot-${{ inputs.pr-number }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          if git diff --quiet; then
+            echo "No code changes needed"
+          else
+            if git rev-parse --verify origin/$FIX_BRANCH 2>/dev/null; then
+              git checkout $FIX_BRANCH
+              git pull origin $FIX_BRANCH
+            else
+              git checkout -b $FIX_BRANCH
+            fi
+
+            git add .
+            git commit -m "fix: resolve test failures from dependabot PR #${{ inputs.pr-number }}"
+            git push origin $FIX_BRANCH --force-with-lease
+          fi
+
+      - name: Report results
+        run: |
+          echo "### Test Fix Report" >> $GITHUB_STEP_SUMMARY
+          echo "- Fixes applied: ${{ steps.check-fixes.outputs.fixes-applied }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Project: ${{ steps.paths.outputs.PROJECT_TYPE }}" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.check-fixes.outputs.fixes-applied }}" == "true" ]; then
+            echo "- Branch: fix-for-dependabot-${{ inputs.pr-number }}" >> $GITHUB_STEP_SUMMARY
+          fi
