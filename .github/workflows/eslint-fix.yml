@@ -28,17 +28,20 @@ jobs:
         id: paths
         run: |
           if echo "${{ inputs.failed-jobs }}" | grep -q "lint-back-end"; then
-            echo "PROJECT_PATH=fs-crypto-coin-tracker/stage-2-node-express-mongo/back-end" >> $GITHUB_OUTPUT
-            echo "PROJECT_TYPE=back-end" >> $GITHUB_OUTPUT
+            PROJECT_PATH=fs-crypto-coin-tracker/stage-2-node-express-mongo/back-end
+            PROJECT_TYPE=back-end
           elif echo "${{ inputs.failed-jobs }}" | grep -q "lint-front-end"; then
-            echo "PROJECT_PATH=fs-crypto-coin-tracker/stage-2-node-express-mongo/front-end-ui" >> $GITHUB_OUTPUT
-            echo "PROJECT_TYPE=front-end" >> $GITHUB_OUTPUT
+            PROJECT_PATH=fs-crypto-coin-tracker/stage-2-node-express-mongo/front-end-ui
+            PROJECT_TYPE=front-end
           fi
 
           if [ -z "$PROJECT_PATH" ]; then
             echo "ERROR: No matching lint job found in failed-jobs" >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
+
+          echo "PROJECT_PATH=$PROJECT_PATH" >> $GITHUB_OUTPUT
+          echo "PROJECT_TYPE=$PROJECT_TYPE" >> $GITHUB_OUTPUT
 
       - name: Install dependencies
         run: npm install

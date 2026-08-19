@@ -79,7 +79,7 @@ jobs:
       failed-jobs: ${{ needs.check-dependabot.outputs.failed-jobs }}
 
   create-fix-pr:
-    needs: check-dependabot
+    needs: [check-dependabot, fix-eslint, fix-tests]
     if: always() && needs.check-dependabot.outputs.pr-number
     runs-on: ubuntu-latest
     steps:
