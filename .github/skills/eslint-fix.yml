@@ -1,13 +1,14 @@
 name: ESLint Fix Skill
 
-on: workflow_call
-  inputs:
-    pr-number:
-      required: true
-      type: string
-    failed-jobs:
-      required: true
-      type: string
+on:
+  workflow_call:
+    inputs:
+      pr-number:
+        required: true
+        type: string
+      failed-jobs:
+        required: true
+        type: string
 
 jobs:
   eslint-fix:
@@ -32,6 +33,11 @@ jobs:
           elif echo "${{ inputs.failed-jobs }}" | grep -q "lint-front-end"; then
             echo "PROJECT_PATH=fs-crypto-coin-tracker/stage-2-node-express-mongo/front-end-ui" >> $GITHUB_OUTPUT
             echo "PROJECT_TYPE=front-end" >> $GITHUB_OUTPUT
+          fi
+
+          if [ -z "$PROJECT_PATH" ]; then
+            echo "ERROR: No matching lint job found in failed-jobs" >> $GITHUB_STEP_SUMMARY
+            exit 1
           fi
 
       - name: Install dependencies
