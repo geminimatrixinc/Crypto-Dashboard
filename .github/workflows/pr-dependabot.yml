@@ -46,8 +46,8 @@ jobs:
             exit 0
           fi
 
-          # Detect failed jobs
-          JOBS=$(gh run view $WORKFLOW_RUN_ID --json jobs -q '.jobs[] | select(.conclusion=="FAILURE") | .name')
+          # Detect failed jobs (gh returns lowercase "failure")
+          JOBS=$(gh run view $WORKFLOW_RUN_ID --json jobs -q '.jobs[] | select(.conclusion=="failure") | .name')
 
           FAILED_JOBS=""
           for job in $JOBS; do
