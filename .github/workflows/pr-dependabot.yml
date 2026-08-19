@@ -36,9 +36,10 @@ jobs:
             exit 0
           fi
 
-          # Check if PR is from dependabot
+          # Check if PR is from dependabot (gh returns "app/dependabot" for the bot)
           AUTHOR=$(gh pr view $PR_NUMBER --json author -q '.author.login')
-          if [ "$AUTHOR" != "dependabot[bot]" ]; then
+          echo "PR author: $AUTHOR"
+          if ! echo "$AUTHOR" | grep -qi "dependabot"; then
             echo "PR is not from dependabot"
             echo "failed_jobs=" >> $GITHUB_OUTPUT
             exit 0
