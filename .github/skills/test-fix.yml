@@ -64,7 +64,7 @@ jobs:
       - name: Prepare fix context for Copilot
         id: copilot-context
         run: |
-          cat > copilot-fix-request.md << 'EOF'
+          cat > copilot-fix-request.md << EOF
           # Test Failure Fix Request
 
           ## Project: ${{ steps.paths.outputs.PROJECT_TYPE }}
