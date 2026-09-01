@@ -12,6 +12,10 @@ const getWatchItemSymbols = async () => {
 
 const deleteWatchItem = async (symbol) => {
   // deleting the symbol from MongoDb
+  if (typeof symbol !== 'string' || !/^[A-Za-z0-9]+$/.test(symbol)) {
+    throw new TypeError('Invalid symbol');
+  }
+
   await WatchItem.deleteOne({ symbol: symbol });
 };
 const saveWatchItem = async (symbol) => {
