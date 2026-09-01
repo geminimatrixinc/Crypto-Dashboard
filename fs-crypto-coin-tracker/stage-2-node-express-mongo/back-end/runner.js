@@ -1,6 +1,6 @@
 
 const express = require('express');
-const { connectToDb } = require('./database/connectionManager')
+const { connectToDb } = require('./database/connectionManager');
 
 // create instance of express app
 const app = new express();
@@ -14,33 +14,33 @@ const port = 3000;
 
 // fetch watchlist
 app.get('/watchlist', (req, res) => {
-    const data = watchListModule.getItems();
-    res.send(data);
-})
+  const data = watchListModule.getItems();
+  res.send(data);
+});
 
 // add to watchlist
 app.post('/watchlist', (req, res) => {
-    // updated express, uses request.query
-    const { symbol } = req.query;
-    console.log(JSON.stringify(req.query));
+  // updated express, uses request.query
+  const { symbol } = req.query;
+  console.log(JSON.stringify(req.query));
 
-    watchListModule.addItem(symbol);
+  watchListModule.addItem(symbol);
 
-    // no need to send back message, status 200 is enough
-    //res.send();
+  // no need to send back message, status 200 is enough
+  //res.send();
 
-    res.end()  //terminates our session, and we lose our temp data..we need a database to save data!
-})
+  res.end();  //terminates our session, and we lose our temp data..we need a database to save data!
+});
 
 // ====> let's connect to mongoDb and then start the express web server...
 
 connectToDb().then(() => {
-    console.log(`MongoDb connection completed..`)
+  console.log('MongoDb connection completed..');
 
-    // start express server on specific port
-    app.listen(port, () => {
-        console.log(`Express server started on ${port}`)
-    })
-})
+  // start express server on specific port
+  app.listen(port, () => {
+    console.log(`Express server started on ${port}`);
+  });
+});
 
 

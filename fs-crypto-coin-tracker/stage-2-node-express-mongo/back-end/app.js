@@ -1,7 +1,7 @@
 
 const express = require('express');
 const cors = require('cors');
-const { connectToDb } = require('./database/connectionManager')
+const { connectToDb } = require('./database/connectionManager');
 
 // create instance of express app
 const app = new express();
@@ -17,31 +17,31 @@ app.use(cors());
 
 // fetch watchlist
 app.get('/watchlist', async(req, res) => {
-    const data = await watchListModule.getItems();
-    res.send(data);
-})
+  const data = await watchListModule.getItems();
+  res.send(data);
+});
 
 // add to watchlist
 app.post('/watchlist', async(req, res) => {
-    // updated express, uses request.query
-    const { symbol } = req.query;
-    console.log(JSON.stringify(req.query));
+  // updated express, uses request.query
+  const { symbol } = req.query;
+  console.log(JSON.stringify(req.query));
 
-    await watchListModule.addItem(symbol);
+  await watchListModule.addItem(symbol);
 
-    // no need to send back message, status 200 is enough
-    res.send();
-})
+  // no need to send back message, status 200 is enough
+  res.send();
+});
 
 // delete from watch list
 app.delete('/watchlist', async(req, res) => {
-    
-    const { symbol } = req.query; 
 
-    await watchListModule.removeItem(symbol);
+  const { symbol } = req.query;
 
-    res.send()
-})
+  await watchListModule.removeItem(symbol);
+
+  res.send();
+});
 
 // the backend should manage the calls to coinmarketcap external api and deal with CORS!
 // not the front end
@@ -49,18 +49,21 @@ app.delete('/watchlist', async(req, res) => {
 // fetch crypto coins
 
 app.get('/cryptocoins', async (req, res) => {
-    const data = await getCryptoCoins();
-    res.send(data);
-})
+  const data = await getCryptoCoins();
+  res.send(data);
+});
 
 
 
-connectToDb().then(() => {
-    console.log(`MongoDb connection completed..`)
+if (require.main === module) {
+  connectToDb().then(() => {
+    console.log('MongoDb connection completed..');
 
     // start express server on specific port
     app.listen(port, () => {
-        console.log(`CORS-enabled Express server started on ${port}`)
-    })
-})
+      console.log(`CORS-enabled Express server started on ${port}`);
+    });
+  });
+}
 
+module.exports = app;
